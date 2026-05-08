@@ -2,6 +2,7 @@ package com.sevino.asistente.chat;
 
 import com.sevino.asistente.SevinoAsistente;
 import com.sevino.asistente.config.AsistenteConfig;
+import com.sevino.asistente.ollama.GroqClient;
 import com.sevino.asistente.ollama.OllamaClient;
 import com.sevino.asistente.ollama.PromptBuilder;
 import net.minecraft.network.chat.Component;
@@ -28,27 +29,36 @@ public final class AssistantConversation {
         history.addAll(ChatHistory.get(player.getUUID()));
         history.add(OllamaClient.Message.user(userMessage));
 
-        OllamaClient.chat(history).whenComplete((reply, ex) -> deliver(player, userMessage, reply, ex));
+        getChatReply(history).whenComplete((reply, ex) -> deliver(player, userMessage, reply, ex));
     }
 
     public static void translate(ServerPlayer player, String text) {
         sendThinking(player);
-        OllamaClient.chat(PromptBuilder.buildTranslateSystemPrompt(), text)
-                .whenComplete((reply, ex) -> deliverSimple(player, "[Sevino tr]", reply, ex));
+        List<OllamaClient.Message> msgs = List.of(
+                OllamaClient.Message.system(PromptBuilder.buildTranslateSystemPrompt()),
+                OllamaClient.Message.user(text)
+        );
+        getChatReply(msgs).whenComplete((reply, ex) -> deliverSimple(player, "[Sevino tr]", reply, ex));
     }
 
     public static void correct(ServerPlayer player, String text) {
         sendThinking(player);
-        OllamaClient.chat(PromptBuilder.buildCorrectSystemPrompt(), text)
-                .whenComplete((reply, ex) -> deliverSimple(player, "[Sevino fix]", reply, ex));
+        List<OllamaClient.Message> msgs = List.of(
+                OllamaClient.Message.system(PromptBuilder.buildCorrectSystemPrompt()),
+                OllamaClient.Message.user(text)
+        );
+        getChatReply(msgs).whenComplete((reply, ex) -> deliverSimple(player, "[Sevino fix]", reply, ex));
     }
 
     public static void vocab(ServerPlayer player, String topic) {
         sendThinking(player);
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
         String system = PromptBuilder.buildVocabSystemPrompt(topic, level);
-        OllamaClient.chat(system, "Give me a vocabulary card now.")
-                .whenComplete((reply, ex) -> deliverSimple(player, "[Sevino vocab/" + topic + "]", reply, ex));
+        List<OllamaClient.Message> msgs = List.of(
+                OllamaClient.Message.system(system),
+                OllamaClient.Message.user("Give me a vocabulary card now.")
+        );
+        getChatReply(msgs).whenComplete((reply, ex) -> deliverSimple(player, "[Sevino vocab/" + topic + "]", reply, ex));
     }
 
     public static void quest(ServerPlayer player) {
@@ -56,8 +66,20 @@ public final class AssistantConversation {
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
         String system = PromptBuilder.buildQuestSystemPrompt(level);
         String userCtx = "Player context: " + PromptBuilder.buildGameContext(player);
-        OllamaClient.chat(system, userCtx)
-                .whenComplete((reply, ex) -> deliverSimple(player, "[Sevino quest]", reply, ex));
+        List<OllamaClient.Message> msgs = List.of(
+                OllamaClient.Message.system(system),
+                OllamaClient.Message.user(userCtx)
+        );
+        getChatReply(msgs).whenComplete((reply, ex) -> deliverSimple(player, "[Sevino quest]", reply, ex));
+    }
+
+    private static java.util.concurrent.CompletableFuture<String> getChatReply(List<OllamaClient.Message> messages) {
+        String provider = AsistenteConfig.AI_PROVIDER.get();
+        if ("groq".equalsIgnoreCase(provider)) {
+            return GroqClient.chat(messages);
+        } else {
+            return OllamaClient.chat(messages);
+        }
     }
 
     private static void sendThinking(ServerPlayer player) {

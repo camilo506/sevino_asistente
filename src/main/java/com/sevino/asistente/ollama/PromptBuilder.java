@@ -37,10 +37,12 @@ public final class PromptBuilder {
         sb.append("Avoid markdown, bullet lists, or code blocks. Use plain text only.\n\n");
 
         switch (level) {
-            case "advanced" -> sb.append("The player has an ADVANCED English level. Use natural, idiomatic English. ");
+            case "advanced" -> sb.append("The player has an ADVANCED English level. Use natural, idiomatic English and complex structures. ");
             case "intermediate" -> sb.append("The player has an INTERMEDIATE English level. Use simple, clear English with common vocabulary. ");
             default -> sb.append("The player is a BEGINNER. Use very simple English (basic verbs, present tense, common words). ");
         }
+        sb.append("Always use the format: 'English sentence / Spanish translation'. ");
+        sb.append("Be very encouraging and friendly! ");
         sb.append("If the player writes broken English, gently correct it and explain briefly in Spanish.\n");
 
         if (AsistenteConfig.INCLUDE_GAME_CONTEXT.get() && player != null) {

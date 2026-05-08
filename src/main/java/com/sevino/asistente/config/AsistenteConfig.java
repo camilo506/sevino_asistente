@@ -15,6 +15,11 @@ public final class AsistenteConfig {
 
     public static final ForgeConfigSpec SPEC;
 
+    public static final ForgeConfigSpec.ConfigValue<String> AI_PROVIDER;
+    public static final ForgeConfigSpec.ConfigValue<String> GROQ_API_KEY;
+    public static final ForgeConfigSpec.ConfigValue<String> GROQ_MODEL;
+    public static final ForgeConfigSpec.ConfigValue<String> WHISPER_MODEL;
+
     public static final ForgeConfigSpec.ConfigValue<String> OLLAMA_URL;
     public static final ForgeConfigSpec.ConfigValue<String> OLLAMA_MODEL;
     public static final ForgeConfigSpec.IntValue OLLAMA_TIMEOUT_SECONDS;
@@ -28,11 +33,33 @@ public final class AsistenteConfig {
     public static final ForgeConfigSpec.ConfigValue<String> ENGLISH_LEVEL;
     public static final ForgeConfigSpec.BooleanValue INCLUDE_GAME_CONTEXT;
     public static final ForgeConfigSpec.BooleanValue ALLOW_AUTO_CORRECT;
+    public static final ForgeConfigSpec.BooleanValue NARRATE_ONLY_ENGLISH;
 
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> VOCAB_TOPICS;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
+
+        b.comment("Configuracion general de IA.").push("general");
+        AI_PROVIDER = b
+                .comment("Proveedor de IA principal. Opciones: 'ollama' (local) o 'groq' (nube).",
+                         "Nota: La entrada de voz siempre requiere una conexion (Groq Whisper por ahora).")
+                .define("aiProvider", "groq");
+        b.pop();
+
+        b.comment("Configuracion de Groq (Nube - Alta velocidad).").push("groq");
+        GROQ_API_KEY = b
+                .comment("Tu API Key de Groq (gsk_...).")
+                .define("apiKey", "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");
+        
+        GROQ_MODEL = b
+                .comment("Modelo de lenguaje de Groq. Ej: llama3-8b-8192, llama3-70b-8192.")
+                .define("model", "llama3-8b-8192");
+
+        WHISPER_MODEL = b
+                .comment("Modelo de Speech-to-Text de Groq. Recomendado: whisper-large-v3-turbo.")
+                .define("whisperModel", "whisper-large-v3-turbo");
+        b.pop();
 
         b.comment("Conexion con Ollama (IA local).").push("ollama");
 
@@ -91,10 +118,15 @@ public final class AsistenteConfig {
                 .comment("Si es true, el asistente puede sugerir correcciones cuando detecte errores en mensajes en ingles.")
                 .define("allowAutoCorrect", true);
 
+        NARRATE_ONLY_ENGLISH = b
+                .comment("Si es true, el narrador solo leera la parte en ingles de la respuesta.")
+                .define("narrateOnlyEnglish", false);
+
         VOCAB_TOPICS = b
                 .comment("Temas para el vocabulario del dia.")
                 .defineList("vocabTopics",
-                        Arrays.asList("mining", "farming", "animals", "food", "weather", "directions", "tools", "combat", "building"),
+                        Arrays.asList("mining", "farming", "animals", "food", "weather", "directions", "tools", 
+                                      "combat", "building", "travel", "cooking", "emotions", "technology", "village"),
                         o -> o instanceof String s && !s.isBlank());
 
         b.pop();
