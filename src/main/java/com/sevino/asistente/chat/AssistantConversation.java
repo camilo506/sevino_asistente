@@ -23,7 +23,7 @@ public final class AssistantConversation {
     private AssistantConversation() {}
 
     public static void chat(ServerPlayer player, String userMessage) {
-        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
+        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
 
         String system = PromptBuilder.buildSystemPrompt(player);
         List<OllamaClient.Message> history = new ArrayList<>();
@@ -35,7 +35,7 @@ public final class AssistantConversation {
     }
 
     public static void translate(ServerPlayer player, String text) {
-        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
+        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
         List<OllamaClient.Message> msgs = List.of(
                 OllamaClient.Message.system(PromptBuilder.buildTranslateSystemPrompt()),
                 OllamaClient.Message.user(text)
@@ -44,7 +44,7 @@ public final class AssistantConversation {
     }
 
     public static void correct(ServerPlayer player, String text) {
-        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
+        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
         List<OllamaClient.Message> msgs = List.of(
                 OllamaClient.Message.system(PromptBuilder.buildCorrectSystemPrompt()),
                 OllamaClient.Message.user(text)
@@ -53,7 +53,7 @@ public final class AssistantConversation {
     }
 
     public static void vocab(ServerPlayer player, String topic) {
-        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
+        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
         String system = PromptBuilder.buildVocabSystemPrompt(topic, level);
         List<OllamaClient.Message> msgs = List.of(
@@ -64,7 +64,7 @@ public final class AssistantConversation {
     }
 
     public static void quest(ServerPlayer player) {
-        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
+        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
         String system = PromptBuilder.buildQuestSystemPrompt(level);
         String userCtx = "Player context: " + PromptBuilder.buildGameContext(player);

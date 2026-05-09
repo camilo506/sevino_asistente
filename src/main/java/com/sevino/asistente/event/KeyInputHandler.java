@@ -47,17 +47,16 @@ public class KeyInputHandler {
             if (voiceKey.isActiveAndMatches(InputConstants.getKey(event.getKey(), event.getScanCode()))) {
                 if (event.getAction() == GLFW.GLFW_PRESS) {
                     if (!recorder.isRecording()) {
-                        mc.player.displayClientMessage(Component.literal("§a[Grabando...]"), true);
+                        mc.player.displayClientMessage(Component.literal("§aPulsar 'V' y pregúntale a Sevino"), true);
                         recorder.start();
                     }
                 } else if (event.getAction() == GLFW.GLFW_RELEASE) {
                     if (recorder.isRecording()) {
                         byte[] audio = recorder.stop();
                         if (audio != null) {
-                            mc.player.displayClientMessage(Component.literal("§e[Sevino está procesando...]"), true);
+                            mc.player.displayClientMessage(Component.literal("§eSevino está procesando..."), true);
                             processVoice(audio);
                         } else {
-                            // Limpiar barra si se soltó muy rápido
                             mc.player.displayClientMessage(Component.literal(""), true);
                         }
                     }

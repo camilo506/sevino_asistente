@@ -111,7 +111,7 @@ public final class AsistenteConfig {
 
         INCLUDE_GAME_CONTEXT = b
                 .comment("Si es true, el asistente recibe informacion del estado del juego (bioma, hotbar, bloque mirado, hora).")
-                .define("includeGameContext", true);
+                .define("includeGameContext", false);
 
         ALLOW_AUTO_CORRECT = b
                 .comment("Si es true, el asistente puede sugerir correcciones cuando detecte errores en mensajes en ingles.")
