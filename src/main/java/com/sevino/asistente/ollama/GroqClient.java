@@ -33,7 +33,7 @@ public final class GroqClient {
     });
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
+            .connectTimeout(Duration.ofSeconds(30))
             .executor(EXECUTOR)
             .build();
 
@@ -78,18 +78,27 @@ public final class GroqClient {
                         .uri(URI.create("https://api.groq.com/openai/v1/audio/transcriptions"))
                         .header("Authorization", "Bearer " + apiKey)
                         .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                        .timeout(Duration.ofSeconds(60)) // Timeout total de la peticion
                         .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                         .build();
 
-                HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+                SevinoAsistente.LOGGER.info("[Groq STT] Enviando audio ({} bytes)...", body.length);
                 
-                if (resp.statusCode() != 200) {
-                    SevinoAsistente.LOGGER.error("[Groq STT] Error {}: {}", resp.statusCode(), resp.body());
-                    return "[Groq STT] Error " + resp.statusCode();
-                }
+                return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+                        .thenApply(resp -> {
+                            if (resp.statusCode() != 200) {
+                                SevinoAsistente.LOGGER.error("[Groq STT] Error {}: {}", resp.statusCode(), resp.body());
+                                return "[Groq STT] Error " + resp.statusCode();
+                            }
 
-                JsonObject json = GSON.fromJson(resp.body(), JsonObject.class);
-                return json.has("text") ? json.get("text").getAsString() : "";
+                            JsonObject json = GSON.fromJson(resp.body(), JsonObject.class);
+                            return json.has("text") ? json.get("text").getAsString() : "";
+                        })
+                        .exceptionally(e -> {
+                            SevinoAsistente.LOGGER.error("[Groq STT] Fallo en la peticion", e);
+                            return "[Groq STT] Error: " + e.getMessage();
+                        })
+                        .join();
 
             } catch (Exception e) {
                 SevinoAsistente.LOGGER.error("[Groq STT] Error inesperado", e);
@@ -122,23 +131,31 @@ public final class GroqClient {
                 body.add("messages", msgArr);
 
                 HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create("https://api.groq.com/openai/v1/chat/completions"))
-                        .header("Authorization", "Bearer " + apiKey)
-                        .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body)))
-                        .build();
+                    .uri(URI.create("https://api.groq.com/openai/v1/chat/completions"))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(60))
+                    .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body)))
+                    .build();
 
-                HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+            return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(resp -> {
+                        if (resp.statusCode() != 200) {
+                            SevinoAsistente.LOGGER.error("[Groq LLM] Error {}: {}", resp.statusCode(), resp.body());
+                            return "[Groq LLM] Error " + resp.statusCode();
+                        }
 
-                if (resp.statusCode() != 200) {
-                    SevinoAsistente.LOGGER.error("[Groq LLM] Error {}: {}", resp.statusCode(), resp.body());
-                    return "[Groq LLM] Error " + resp.statusCode();
-                }
-
-                JsonObject json = GSON.fromJson(resp.body(), JsonObject.class);
-                return json.get("choices").getAsJsonArray().get(0)
-                        .getAsJsonObject().get("message")
-                        .getAsJsonObject().get("content").getAsString();
+                        JsonObject json = GSON.fromJson(resp.body(), JsonObject.class);
+                        return json.getAsJsonArray("choices")
+                                .get(0).getAsJsonObject()
+                                .get("message").getAsJsonObject()
+                                .get("content").getAsString();
+                    })
+                    .exceptionally(e -> {
+                        SevinoAsistente.LOGGER.error("[Groq LLM] Fallo en la peticion", e);
+                        return "[Groq LLM] Error: " + e.getMessage();
+                    })
+                    .join();
 
             } catch (Exception e) {
                 SevinoAsistente.LOGGER.error("[Groq LLM] Error inesperado", e);

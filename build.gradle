@@ -40,6 +40,8 @@ minecraft {
 
         client {
             property 'forge.enabledGameTestNamespaces', mod_id
+            property 'java.net.preferIPv4Stack', 'true'
+            property 'java.net.preferIPv6Addresses', 'false'
         }
 
         server {

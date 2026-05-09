@@ -30,20 +30,12 @@ public final class PromptBuilder {
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("You are 'Sevino', a friendly in-game English tutor inside Minecraft. ");
-        sb.append("Your goal is to help the player learn English while they play. ");
-        sb.append("Always reply in BOTH English (first) and Spanish (second), separated by ' / '. ");
-        sb.append("Keep replies SHORT (1-3 sentences max), suitable for in-game chat. ");
-        sb.append("Avoid markdown, bullet lists, or code blocks. Use plain text only.\n\n");
-
-        switch (level) {
-            case "advanced" -> sb.append("The player has an ADVANCED English level. Use natural, idiomatic English and complex structures. ");
-            case "intermediate" -> sb.append("The player has an INTERMEDIATE English level. Use simple, clear English with common vocabulary. ");
-            default -> sb.append("The player is a BEGINNER. Use very simple English (basic verbs, present tense, common words). ");
-        }
-        sb.append("Always use the format: 'English sentence / Spanish translation'. ");
-        sb.append("Be very encouraging and friendly! ");
-        sb.append("If the player writes broken English, gently correct it and explain briefly in Spanish.\n");
+        sb.append("You are 'Sevino', an ultra-concise English translator and pronunciation coach. ");
+        sb.append("Your ONLY task is to provide direct translations in an EXTREMELY SHORT way: 'English / Spanish'. ");
+        sb.append("PRONUNCIATION RULE: If the user repeats a word you just taught them, judge if it's correct. ");
+        sb.append("If correct: Reply 'Perfect! / ¡Perfecto!'. ");
+        sb.append("If incorrect: Reply EXACTLY 'Inténtalo de nuevo. La palabra es: [English] / [Spanish]'. ");
+        sb.append("Example: 'Apple / Manzana'. No extra chat.\n");
 
         if (AsistenteConfig.INCLUDE_GAME_CONTEXT.get() && player != null) {
             sb.append("\n--- Game context ---\n");

@@ -5,7 +5,9 @@ import com.sevino.asistente.config.AsistenteConfig;
 import com.sevino.asistente.ollama.GroqClient;
 import com.sevino.asistente.ollama.OllamaClient;
 import com.sevino.asistente.ollama.PromptBuilder;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -21,7 +23,7 @@ public final class AssistantConversation {
     private AssistantConversation() {}
 
     public static void chat(ServerPlayer player, String userMessage) {
-        sendThinking(player);
+        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
 
         String system = PromptBuilder.buildSystemPrompt(player);
         List<OllamaClient.Message> history = new ArrayList<>();
@@ -33,7 +35,7 @@ public final class AssistantConversation {
     }
 
     public static void translate(ServerPlayer player, String text) {
-        sendThinking(player);
+        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
         List<OllamaClient.Message> msgs = List.of(
                 OllamaClient.Message.system(PromptBuilder.buildTranslateSystemPrompt()),
                 OllamaClient.Message.user(text)
@@ -42,7 +44,7 @@ public final class AssistantConversation {
     }
 
     public static void correct(ServerPlayer player, String text) {
-        sendThinking(player);
+        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
         List<OllamaClient.Message> msgs = List.of(
                 OllamaClient.Message.system(PromptBuilder.buildCorrectSystemPrompt()),
                 OllamaClient.Message.user(text)
@@ -51,7 +53,7 @@ public final class AssistantConversation {
     }
 
     public static void vocab(ServerPlayer player, String topic) {
-        sendThinking(player);
+        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
         String system = PromptBuilder.buildVocabSystemPrompt(topic, level);
         List<OllamaClient.Message> msgs = List.of(
@@ -62,7 +64,7 @@ public final class AssistantConversation {
     }
 
     public static void quest(ServerPlayer player) {
-        sendThinking(player);
+        player.sendSystemMessage(Component.literal("§e[Sevino está procesando...]"), true);
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
         String system = PromptBuilder.buildQuestSystemPrompt(level);
         String userCtx = "Player context: " + PromptBuilder.buildGameContext(player);
@@ -103,7 +105,7 @@ public final class AssistantConversation {
 
             for (String line : reply.split("\\R")) {
                 if (line.isBlank()) continue;
-                player.sendSystemMessage(Component.literal("[Sevino] " + line));
+                player.sendSystemMessage(formatBilingual("[Sevino]", line));
             }
         });
     }
@@ -120,8 +122,30 @@ public final class AssistantConversation {
             }
             for (String line : reply.split("\\R")) {
                 if (line.isBlank()) continue;
-                player.sendSystemMessage(Component.literal(tag + " " + line));
+                player.sendSystemMessage(formatBilingual(tag, line));
             }
         });
+    }
+
+    private static Component formatBilingual(String tag, String line) {
+        ChatFormatting mainColor = ChatFormatting.GREEN;
+        
+        // Si el mensaje es de reintento, usamos color Oro/Amarillo
+        if (line.startsWith("Inténtalo de nuevo") || line.startsWith("Try again")) {
+            mainColor = ChatFormatting.GOLD;
+        }
+
+        MutableComponent comp = Component.literal(tag + " ").withStyle(mainColor);
+        
+        if (line.contains(" / ")) {
+            String[] parts = line.split(" / ", 2);
+            comp.append(Component.literal(parts[0]).withStyle(mainColor))
+                .append(Component.literal(" / ").withStyle(mainColor))
+                .append(Component.literal(parts[1]).withStyle(mainColor));
+        } else {
+            comp.append(Component.literal(line).withStyle(mainColor));
+        }
+        
+        return comp;
     }
 }

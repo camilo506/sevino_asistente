@@ -27,6 +27,10 @@ public class SevinoAsistente {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public SevinoAsistente() {
+        // Forzar IPv4 para evitar timeouts de conexion en Windows (comun en Java)
+        System.setProperty("java.net.preferIPv4Stack", "true");
+        System.setProperty("java.net.preferIPv6Addresses", "false");
+
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         // Registros

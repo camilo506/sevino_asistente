@@ -43,15 +43,23 @@ public class KeyInputHandler {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.screen != null) return;
 
-            if (voiceKey.consumeClick()) {
-                if (!recorder.isRecording()) {
-                    mc.player.displayClientMessage(Component.literal("§a[Sevino] Escuchando..."), true);
-                    recorder.start();
-                } else {
-                    byte[] audio = recorder.stop();
-                    if (audio != null) {
-                        mc.player.displayClientMessage(Component.literal("§e[Sevino] Transcribiendo..."), true);
-                        processVoice(audio);
+            // Verificamos si la tecla pulsada es la de voz
+            if (voiceKey.isActiveAndMatches(InputConstants.getKey(event.getKey(), event.getScanCode()))) {
+                if (event.getAction() == GLFW.GLFW_PRESS) {
+                    if (!recorder.isRecording()) {
+                        mc.player.displayClientMessage(Component.literal("§a[Grabando...]"), true);
+                        recorder.start();
+                    }
+                } else if (event.getAction() == GLFW.GLFW_RELEASE) {
+                    if (recorder.isRecording()) {
+                        byte[] audio = recorder.stop();
+                        if (audio != null) {
+                            mc.player.displayClientMessage(Component.literal("§e[Sevino está procesando...]"), true);
+                            processVoice(audio);
+                        } else {
+                            // Limpiar barra si se soltó muy rápido
+                            mc.player.displayClientMessage(Component.literal(""), true);
+                        }
                     }
                 }
             }
@@ -69,8 +77,7 @@ public class KeyInputHandler {
             }
 
             mc.execute(() -> {
-                mc.player.displayClientMessage(Component.literal("§7Tú: " + text), false);
-                // Enviamos el texto al servidor simulando un mensaje de chat con el prefijo
+                // Ya no mostramos "Tú: [texto]" para evitar ver errores de pronunciación.
                 String prefix = AsistenteConfig.CHAT_PREFIX.get();
                 mc.player.connection.sendChat(prefix + " " + text);
             });

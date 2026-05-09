@@ -42,8 +42,7 @@ public final class AsistenteConfig {
 
         b.comment("Configuracion general de IA.").push("general");
         AI_PROVIDER = b
-                .comment("Proveedor de IA principal. Opciones: 'ollama' (local) o 'groq' (nube).",
-                         "Nota: La entrada de voz siempre requiere una conexion (Groq Whisper por ahora).")
+                .comment("Proveedor de IA principal. Opciones: 'ollama' (local) o 'groq' (nube).")
                 .define("aiProvider", "groq");
         b.pop();
 
@@ -53,8 +52,8 @@ public final class AsistenteConfig {
                 .define("apiKey", "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");
         
         GROQ_MODEL = b
-                .comment("Modelo de lenguaje de Groq. Ej: llama3-8b-8192, llama3-70b-8192.")
-                .define("model", "llama3-8b-8192");
+                .comment("Modelo de lenguaje de Groq. Ej: llama-3.1-8b-instant, llama-3.3-70b-versatile.")
+                .define("model", "llama-3.1-8b-instant");
 
         WHISPER_MODEL = b
                 .comment("Modelo de Speech-to-Text de Groq. Recomendado: whisper-large-v3-turbo.")
@@ -70,8 +69,8 @@ public final class AsistenteConfig {
                 .define("url", "http://127.0.0.1:11434");
 
         OLLAMA_MODEL = b
-                .comment("Modelo a usar. Asegurate de tenerlo descargado con `ollama pull <modelo>`.")
-                .define("model", "llama3.2");
+                .comment("Modelo a usar. RECOMENDADOS: llama3.1 (8B), llama3.2 (3B), qwen2.5 (7B).")
+                .define("model", "llama3.1");
 
         OLLAMA_TIMEOUT_SECONDS = b
                 .comment("Timeout en segundos para cada peticion HTTP a Ollama.")
