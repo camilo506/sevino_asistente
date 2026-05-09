@@ -91,7 +91,6 @@ public final class AssistantConversation {
     private static void deliver(ServerPlayer player, String userMessage, String reply, Throwable ex) {
         player.server.execute(() -> {
             if (ex != null) {
-                SevinoAsistente.LOGGER.error("[Sevino] error en chat", ex);
                 player.sendSystemMessage(Component.literal("[Sevino] Error: " + ex.getMessage()));
                 return;
             }

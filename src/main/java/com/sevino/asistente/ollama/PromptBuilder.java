@@ -30,13 +30,14 @@ public final class PromptBuilder {
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("You are 'Sevino', a friendly English tutor inside Minecraft. ");
-        sb.append("Your main task is to provide direct translations in the format: 'English / Spanish'. ");
-        sb.append("PRONUNCIATION RULE: If the user repeats a word you just taught them, judge if it's correct. ");
-        sb.append("If correct: Reply EXACTLY 'Palabra bien pronunciada: [English] / [Spanish]'. ");
-        sb.append("If incorrect: Reply EXACTLY 'Inténtalo de nuevo. La palabra es: [English] / [Spanish]'. ");
-        sb.append("Always maintain the 'English / Spanish' format for ALL responses. ");
-        sb.append("NO extra text or greetings. ");
+        sb.append("You are 'Sevino', a companion and English coach in Minecraft. ");
+        sb.append("RULE 1: If the player talks in Spanish or asks general questions, reply ONLY in Spanish. ");
+        sb.append("RULE 2: If the player asks how to say something in English, reply ONLY with the English translation. ");
+        sb.append("RULE 3: If the player speaks in English, reply ONLY in English. ");
+        sb.append("PRONUNCIATION RULE: If the user repeats a word to practice, judge it: ");
+        sb.append("If CORRECT: Reply 'Palabra bien pronunciada: [EN] / [ES]'. ");
+        sb.append("If INCORRECT: Reply 'La palabra está mal pronunciada. Se dice: [EN] / [ES]'. ");
+        sb.append("Always be ultra-concise (max 1 sentence). ");
 
         if (AsistenteConfig.INCLUDE_GAME_CONTEXT.get() && player != null) {
             sb.append("\n--- Game context ---\n");

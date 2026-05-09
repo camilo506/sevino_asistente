@@ -21,7 +21,6 @@ public class AudioRecorder {
         try {
             DataLine.Info info = new DataLine.Info(TargetDataLine.class, FORMAT);
             if (!AudioSystem.isLineSupported(info)) {
-                SevinoAsistente.LOGGER.error("Micrófono no soportado.");
                 return;
             }
             line = (TargetDataLine) AudioSystem.getLine(info);
@@ -40,19 +39,25 @@ public class AudioRecorder {
             });
             t.setDaemon(true);
             t.start();
-        } catch (LineUnavailableException e) {
-            SevinoAsistente.LOGGER.error("Error al abrir línea de audio", e);
+        } catch (Exception e) {
+            // Error silencioso para evitar crash
         }
     }
 
     public byte[] stop() {
-        if (!recording) return null;
-        recording = false;
-        line.stop();
-        line.close();
+        try {
+            if (!recording) return null;
+            recording = false;
+            if (line != null) {
+                line.stop();
+                line.close();
+            }
 
-        byte[] pcmData = out.toByteArray();
-        return convertToWav(pcmData);
+            byte[] pcmData = out.toByteArray();
+            return convertToWav(pcmData);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public boolean isRecording() {
@@ -66,8 +71,8 @@ public class AudioRecorder {
                     new ByteArrayInputStream(pcmData), FORMAT, pcmData.length / FORMAT.getFrameSize());
             AudioSystem.write(ais, AudioFileFormat.Type.WAVE, wavOut);
             ais.close();
-        } catch (IOException e) {
-            SevinoAsistente.LOGGER.error("Error al convertir a WAV", e);
+        } catch (Exception e) {
+            // Error silencioso
         }
         return wavOut.toByteArray();
     }

@@ -3,124 +3,108 @@ package com.sevino.asistente.ollama;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.sevino.asistente.SevinoAsistente;
 import com.sevino.asistente.config.AsistenteConfig;
 
-import java.io.ByteArrayOutputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Cliente para la API de Groq Cloud.
- * Maneja tanto la transcripción de audio (Whisper) como el chat (LLM).
+ * Cliente para Groq usando HttpURLConnection (Método clásico para evitar bloqueos).
  */
 public final class GroqClient {
 
     private static final Gson GSON = new Gson();
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(2, r -> {
-        Thread t = new Thread(r, "Sevino-Groq-" + UUID.randomUUID().toString().substring(0, 4));
+        Thread t = new Thread(r, "Sevino-Worker");
         t.setDaemon(true);
         return t;
     });
 
-    private static final HttpClient HTTP = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(30))
-            .executor(EXECUTOR)
-            .build();
-
     private GroqClient() {}
 
-    /**
-     * Transcribe audio (formato WAV/PCM) usando Groq Whisper.
-     */
     public static CompletableFuture<String> transcribe(byte[] audioData) {
         return CompletableFuture.supplyAsync(() -> {
-            String apiKey = AsistenteConfig.GROQ_API_KEY.get();
-            String model = AsistenteConfig.WHISPER_MODEL.get();
-
-            if (apiKey == null || apiKey.isBlank()) return "[Groq] Error: API Key no configurada.";
-
+            HttpURLConnection conn = null;
             try {
-                String boundary = "SevinoBoundary" + System.currentTimeMillis();
-                byte[] boundaryBytes = ("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8);
-                byte[] finishBytes = ("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
-                byte[] crlf = "\r\n".getBytes(StandardCharsets.UTF_8);
+                String apiKey = AsistenteConfig.GROQ_API_KEY.get();
+                String model = AsistenteConfig.WHISPER_MODEL.get();
+                if (apiKey == null || apiKey.isEmpty()) return "[Error] API Key faltante.";
 
-                ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                
-                // Campo "model"
-                bos.write(boundaryBytes);
-                bos.write("Content-Disposition: form-data; name=\"model\"\r\n\r\n".getBytes(StandardCharsets.UTF_8));
-                bos.write(model.getBytes(StandardCharsets.UTF_8));
-                bos.write(crlf);
+                URL url = new URL("https://api.groq.com/openai/v1/audio/transcriptions");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setDoOutput(true);
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+                String boundary = "SevinoBoundary";
+                conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(30000);
 
-                // Campo "file"
-                bos.write(boundaryBytes);
-                bos.write("Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n".getBytes(StandardCharsets.UTF_8));
-                bos.write("Content-Type: audio/wav\r\n\r\n".getBytes(StandardCharsets.UTF_8));
-                bos.write(audioData);
-                bos.write(crlf);
-                
-                bos.write(finishBytes);
+                try (OutputStream os = conn.getOutputStream();
+                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8), true)) {
+                    
+                    // Model field
+                    writer.println("--" + boundary);
+                    writer.println("Content-Disposition: form-data; name=\"model\"");
+                    writer.println();
+                    writer.println(model);
 
-                byte[] body = bos.toByteArray();
+                    // File field
+                    writer.println("--" + boundary);
+                    writer.println("Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"");
+                    writer.println("Content-Type: audio/wav");
+                    writer.println();
+                    writer.flush();
+                    os.write(audioData);
+                    os.flush();
+                    writer.println();
+                    writer.println("--" + boundary + "--");
+                }
 
-                HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create("https://api.groq.com/openai/v1/audio/transcriptions"))
-                        .header("Authorization", "Bearer " + apiKey)
-                        .header("Content-Type", "multipart/form-data; boundary=" + boundary)
-                        .timeout(Duration.ofSeconds(60)) // Timeout total de la peticion
-                        .POST(HttpRequest.BodyPublishers.ofByteArray(body))
-                        .build();
-
-                SevinoAsistente.LOGGER.info("[Groq STT] Enviando audio ({} bytes)...", body.length);
-                
-                return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString())
-                        .thenApply(resp -> {
-                            if (resp.statusCode() != 200) {
-                                SevinoAsistente.LOGGER.error("[Groq STT] Error {}: {}", resp.statusCode(), resp.body());
-                                return "[Groq STT] Error " + resp.statusCode();
-                            }
-
-                            JsonObject json = GSON.fromJson(resp.body(), JsonObject.class);
-                            return json.has("text") ? json.get("text").getAsString() : "";
-                        })
-                        .exceptionally(e -> {
-                            SevinoAsistente.LOGGER.error("[Groq STT] Fallo en la peticion", e);
-                            return "[Groq STT] Error: " + e.getMessage();
-                        })
-                        .join();
-
+                int code = conn.getResponseCode();
+                InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                    StringBuilder resp = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) resp.append(line);
+                    
+                    if (code != 200) return "[Error STT] " + code;
+                    JsonObject json = GSON.fromJson(resp.toString(), JsonObject.class);
+                    return json.has("text") ? json.get("text").getAsString() : "";
+                }
             } catch (Exception e) {
-                SevinoAsistente.LOGGER.error("[Groq STT] Error inesperado", e);
-                return "[Groq STT] Error: " + e.getMessage();
+                return "[Error Red] " + e.getMessage();
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }, EXECUTOR);
     }
 
-    /**
-     * Chat completion usando Groq Llama 3.
-     */
     public static CompletableFuture<String> chat(List<OllamaClient.Message> messages) {
         return CompletableFuture.supplyAsync(() -> {
-            String apiKey = AsistenteConfig.GROQ_API_KEY.get();
-            String model = AsistenteConfig.GROQ_MODEL.get();
-
-            if (apiKey == null || apiKey.isBlank()) return "[Groq] Error: API Key no configurada.";
-
+            HttpURLConnection conn = null;
             try {
+                String apiKey = AsistenteConfig.GROQ_API_KEY.get();
+                String model = AsistenteConfig.GROQ_MODEL.get();
+                if (apiKey == null || apiKey.isEmpty()) return "[Error] API Key faltante.";
+
+                URL url = new URL("https://api.groq.com/openai/v1/chat/completions");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setDoOutput(true);
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(30000);
+
                 JsonObject body = new JsonObject();
                 body.addProperty("model", model);
-                
                 JsonArray msgArr = new JsonArray();
                 for (OllamaClient.Message m : messages) {
                     JsonObject jm = new JsonObject();
@@ -130,36 +114,28 @@ public final class GroqClient {
                 }
                 body.add("messages", msgArr);
 
-                HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.groq.com/openai/v1/chat/completions"))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(60))
-                    .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body)))
-                    .build();
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(GSON.toJson(body).getBytes(StandardCharsets.UTF_8));
+                }
 
-            return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString())
-                    .thenApply(resp -> {
-                        if (resp.statusCode() != 200) {
-                            SevinoAsistente.LOGGER.error("[Groq LLM] Error {}: {}", resp.statusCode(), resp.body());
-                            return "[Groq LLM] Error " + resp.statusCode();
-                        }
-
-                        JsonObject json = GSON.fromJson(resp.body(), JsonObject.class);
-                        return json.getAsJsonArray("choices")
-                                .get(0).getAsJsonObject()
-                                .get("message").getAsJsonObject()
-                                .get("content").getAsString();
-                    })
-                    .exceptionally(e -> {
-                        SevinoAsistente.LOGGER.error("[Groq LLM] Fallo en la peticion", e);
-                        return "[Groq LLM] Error: " + e.getMessage();
-                    })
-                    .join();
-
+                int code = conn.getResponseCode();
+                InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                    StringBuilder resp = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) resp.append(line);
+                    
+                    if (code != 200) return "[Error LLM] " + code;
+                    JsonObject json = GSON.fromJson(resp.toString(), JsonObject.class);
+                    return json.getAsJsonArray("choices")
+                            .get(0).getAsJsonObject()
+                            .get("message").getAsJsonObject()
+                            .get("content").getAsString();
+                }
             } catch (Exception e) {
-                SevinoAsistente.LOGGER.error("[Groq LLM] Error inesperado", e);
-                return "[Groq LLM] Error: " + e.getMessage();
+                return "[Error Red] " + e.getMessage();
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }, EXECUTOR);
     }

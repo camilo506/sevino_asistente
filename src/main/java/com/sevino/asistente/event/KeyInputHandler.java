@@ -9,6 +9,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientChatReceivedEvent;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -38,29 +39,44 @@ public class KeyInputHandler {
     public static class ForgeEvents {
         @SubscribeEvent
         public static void onKeyInput(InputEvent.Key event) {
-            if (voiceKey == null) return;
+            try {
+                if (voiceKey == null) return;
 
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.player == null || mc.screen != null) return;
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player == null || mc.screen != null) return;
 
-            // Verificamos si la tecla pulsada es la de voz
-            if (voiceKey.isActiveAndMatches(InputConstants.getKey(event.getKey(), event.getScanCode()))) {
-                if (event.getAction() == GLFW.GLFW_PRESS) {
-                    if (!recorder.isRecording()) {
-                        mc.player.displayClientMessage(Component.literal("§aPulsar 'V' y pregúntale a Sevino"), true);
-                        recorder.start();
-                    }
-                } else if (event.getAction() == GLFW.GLFW_RELEASE) {
-                    if (recorder.isRecording()) {
-                        byte[] audio = recorder.stop();
-                        if (audio != null) {
+                if (voiceKey.isActiveAndMatches(InputConstants.getKey(event.getKey(), event.getScanCode()))) {
+                    if (event.getAction() == GLFW.GLFW_PRESS) {
+                        if (!recorder.isRecording()) {
+                            mc.player.displayClientMessage(Component.literal("§aPulsar 'V' y pregúntale a Sevino"), true);
+                            // Iniciamos el micrófono en segundo plano
+                            new Thread(() -> {
+                                try {
+                                    recorder.start();
+                                } catch (Exception e) {}
+                            }, "Sevino-MicStarter").start();
+                        }
+                    } else if (event.getAction() == GLFW.GLFW_RELEASE) {
+                        if (recorder.isRecording()) {
                             mc.player.displayClientMessage(Component.literal("§eSevino está procesando..."), true);
-                            processVoice(audio);
-                        } else {
-                            mc.player.displayClientMessage(Component.literal(""), true);
+                            
+                            // Ejecutamos todo el procesamiento pesado en un hilo de fondo
+                            new Thread(() -> {
+                                try {
+                                    byte[] audio = recorder.stop();
+                                    if (audio != null) {
+                                        processVoice(audio);
+                                    }
+                                } catch (Exception e) {
+                                    // Silencio en caso de error
+                                }
+                            }, "Sevino-AudioProcessor").start();
                         }
                     }
                 }
+            } catch (Throwable t) {
+                // Silencio total en caso de error para evitar el crash.
+                // No usamos LOGGER aquí para evitar el LinkageError.
             }
         }
     }

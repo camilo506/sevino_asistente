@@ -118,7 +118,6 @@ public final class OllamaClient {
             HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
             if (resp.statusCode() / 100 != 2) {
-                SevinoAsistente.LOGGER.warn("[Ollama] Status {} respuesta {}", resp.statusCode(), resp.body());
                 return "[Ollama] Error " + resp.statusCode() + ": " + truncate(resp.body(), 200);
             }
 
@@ -142,13 +141,11 @@ public final class OllamaClient {
 
             return "[Ollama] Formato de respuesta inesperado.";
         } catch (java.net.ConnectException ce) {
-            SevinoAsistente.LOGGER.warn("[Ollama] No se pudo conectar: {}", ce.getMessage());
             return "[Ollama] No se pudo conectar al servidor en " + baseUrl
                     + ". Asegurate de que Ollama este corriendo (`ollama serve`).";
         } catch (java.net.http.HttpTimeoutException te) {
             return "[Ollama] La respuesta tardo demasiado (timeout " + timeoutSec + "s).";
         } catch (Exception e) {
-            SevinoAsistente.LOGGER.error("[Ollama] Error inesperado", e);
             return "[Ollama] Error: " + e.getClass().getSimpleName() + " - " + e.getMessage();
         }
     }
