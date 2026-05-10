@@ -3,10 +3,12 @@ package com.sevino.asistente;
 import com.mojang.logging.LogUtils;
 import com.sevino.asistente.client.AssistantRenderer;
 import com.sevino.asistente.command.SevinoCommands;
+import com.sevino.asistente.config.AsistenteClientConfig;
 import com.sevino.asistente.config.AsistenteConfig;
 import com.sevino.asistente.entity.AssistantEntity;
 import com.sevino.asistente.entity.ModEntities;
 import com.sevino.asistente.event.ChatPrefixHandler;
+import com.sevino.asistente.network.SevinoNetworking;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.common.MinecraftForge;
@@ -48,11 +50,13 @@ public class SevinoAsistente {
 
         // Configuracion
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, AsistenteConfig.SPEC, "sevinoasistente-common.toml");
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, AsistenteClientConfig.SPEC, "sevinoasistente-client.toml");
 
         LOGGER.info("[SevinoAsistente] Mod inicializado.");
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
+        event.enqueueWork(SevinoNetworking::register);
         LOGGER.info("[SevinoAsistente] commonSetup ejecutado.");
     }
 

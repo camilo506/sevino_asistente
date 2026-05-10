@@ -6,6 +6,8 @@ plugins {
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
 }
 
+jarJar.enable()
+
 version = mod_version
 group = mod_group_id
 
@@ -63,7 +65,24 @@ minecraft {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
-    // Aqui se podrian agregar repos extra si se necesitan deps adicionales.
+    mavenCentral()
+}
+
+configurations {
+    jlayerUnpack
+}
+
+// Copia JLayer dentro del directorio de clases del mod: el ModuleClassLoader de Forge no ve runtimeOnly ni Jar-in-Jar en userdev.
+tasks.register('unpackJlayer', Copy) {
+    dependsOn configurations.jlayerUnpack, tasks.compileJava
+    from { zipTree(configurations.jlayerUnpack.singleFile) }
+    into sourceSets.main.java.destinationDirectory
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/**'
+}
+
+tasks.named('classes').configure {
+    dependsOn(tasks.unpackJlayer)
 }
 
 dependencies {
@@ -71,6 +90,13 @@ dependencies {
 
     // Gson y la libreria HTTP de Java 17 (java.net.http) ya vienen incluidas con Minecraft/Forge,
     // por lo que no necesitamos shadear nada para hablar con Ollama.
+
+    compileOnly('com.googlecode.soundlibs:jlayer:1.0.1.4') {
+        exclude group: 'junit', module: 'junit'
+    }
+    jlayerUnpack('com.googlecode.soundlibs:jlayer:1.0.1.4') {
+        exclude group: 'junit', module: 'junit'
+    }
 }
 
 tasks.named('processResources', ProcessResources).configure {

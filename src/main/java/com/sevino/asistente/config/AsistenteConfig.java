@@ -56,8 +56,9 @@ public final class AsistenteConfig {
                 .define("model", "llama-3.1-8b-instant");
 
         WHISPER_MODEL = b
-                .comment("Modelo de Speech-to-Text de Groq. Recomendado: whisper-large-v3-turbo.")
-                .define("whisperModel", "whisper-large-v3-turbo");
+                .comment("Modelo de Whisper a usar (ej: whisper-large-v3)")
+                .define("whisperModel", "whisper-large-v3");
+
         b.pop();
 
         b.comment("Conexion con Ollama (IA local).").push("ollama");
@@ -118,7 +119,7 @@ public final class AsistenteConfig {
                 .define("allowAutoCorrect", true);
 
         NARRATE_ONLY_ENGLISH = b
-                .comment("Si es true, el narrador solo leera la parte en ingles de la respuesta.")
+                .comment("Si es true, el narrador / voz solo usaran la parte en ingles (antes de ' / ') en cada linea.")
                 .define("narrateOnlyEnglish", false);
 
         VOCAB_TOPICS = b

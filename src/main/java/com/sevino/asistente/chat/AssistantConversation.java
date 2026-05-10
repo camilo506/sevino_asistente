@@ -1,9 +1,9 @@
 package com.sevino.asistente.chat;
 
-import com.sevino.asistente.SevinoAsistente;
 import com.sevino.asistente.config.AsistenteConfig;
 import com.sevino.asistente.ollama.GroqClient;
 import com.sevino.asistente.ollama.OllamaClient;
+import com.sevino.asistente.network.SevinoNetworking;
 import com.sevino.asistente.ollama.PromptBuilder;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -23,7 +23,7 @@ public final class AssistantConversation {
     private AssistantConversation() {}
 
     public static void chat(ServerPlayer player, String userMessage) {
-        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
+        player.sendSystemMessage(Component.literal("?eSevino est? procesando..."), true);
 
         String system = PromptBuilder.buildSystemPrompt(player);
         List<OllamaClient.Message> history = new ArrayList<>();
@@ -35,7 +35,7 @@ public final class AssistantConversation {
     }
 
     public static void translate(ServerPlayer player, String text) {
-        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
+        player.sendSystemMessage(Component.literal("?eSevino est? procesando..."), true);
         List<OllamaClient.Message> msgs = List.of(
                 OllamaClient.Message.system(PromptBuilder.buildTranslateSystemPrompt()),
                 OllamaClient.Message.user(text)
@@ -44,7 +44,7 @@ public final class AssistantConversation {
     }
 
     public static void correct(ServerPlayer player, String text) {
-        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
+        player.sendSystemMessage(Component.literal("?eSevino est? procesando..."), true);
         List<OllamaClient.Message> msgs = List.of(
                 OllamaClient.Message.system(PromptBuilder.buildCorrectSystemPrompt()),
                 OllamaClient.Message.user(text)
@@ -53,7 +53,7 @@ public final class AssistantConversation {
     }
 
     public static void vocab(ServerPlayer player, String topic) {
-        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
+        player.sendSystemMessage(Component.literal("?eSevino est? procesando..."), true);
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
         String system = PromptBuilder.buildVocabSystemPrompt(topic, level);
         List<OllamaClient.Message> msgs = List.of(
@@ -64,7 +64,7 @@ public final class AssistantConversation {
     }
 
     public static void quest(ServerPlayer player) {
-        player.sendSystemMessage(Component.literal("§eSevino está procesando..."), true);
+        player.sendSystemMessage(Component.literal("?eSevino est? procesando..."), true);
         String level = AsistenteConfig.ENGLISH_LEVEL.get();
         String system = PromptBuilder.buildQuestSystemPrompt(level);
         String userCtx = "Player context: " + PromptBuilder.buildGameContext(player);
@@ -102,6 +102,8 @@ public final class AssistantConversation {
             ChatHistory.append(player.getUUID(), OllamaClient.Message.user(userMessage));
             ChatHistory.append(player.getUUID(), OllamaClient.Message.assistant(reply));
 
+            SevinoNetworking.sendVoice(player, reply);
+
             for (String line : reply.split("\\R")) {
                 if (line.isBlank()) continue;
                 player.sendSystemMessage(formatBilingual("[Sevino]", line));
@@ -119,6 +121,9 @@ public final class AssistantConversation {
                 player.sendSystemMessage(Component.literal(tag + " (vacio)"));
                 return;
             }
+            
+            SevinoNetworking.sendVoice(player, reply);
+
             for (String line : reply.split("\\R")) {
                 if (line.isBlank()) continue;
                 player.sendSystemMessage(formatBilingual(tag, line));
@@ -130,7 +135,7 @@ public final class AssistantConversation {
         ChatFormatting mainColor = ChatFormatting.GREEN;
         
         // Si el mensaje es de reintento, usamos color Oro/Amarillo
-        if (line.startsWith("Inténtalo de nuevo") || line.startsWith("Try again")) {
+        if (line.startsWith("Int?ntalo de nuevo") || line.startsWith("Try again")) {
             mainColor = ChatFormatting.GOLD;
         }
 

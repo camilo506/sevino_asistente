@@ -15,7 +15,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Cliente para Groq usando HttpURLConnection (Método clásico para evitar bloqueos).
+ * Cliente para Groq usando HttpURLConnection (Método clásico para evitar
+ * bloqueos).
  */
 public final class GroqClient {
 
@@ -26,7 +27,8 @@ public final class GroqClient {
         return t;
     });
 
-    private GroqClient() {}
+    private GroqClient() {
+    }
 
     public static CompletableFuture<String> transcribe(byte[] audioData) {
         return CompletableFuture.supplyAsync(() -> {
@@ -34,7 +36,8 @@ public final class GroqClient {
             try {
                 String apiKey = AsistenteConfig.GROQ_API_KEY.get();
                 String model = AsistenteConfig.WHISPER_MODEL.get();
-                if (apiKey == null || apiKey.isEmpty()) return "[Error] API Key faltante.";
+                if (apiKey == null || apiKey.isEmpty())
+                    return "[Error] API Key faltante.";
 
                 URL url = new URL("https://api.groq.com/openai/v1/audio/transcriptions");
                 conn = (HttpURLConnection) url.openConnection();
@@ -47,8 +50,9 @@ public final class GroqClient {
                 conn.setReadTimeout(30000);
 
                 try (OutputStream os = conn.getOutputStream();
-                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8), true)) {
-                    
+                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8),
+                                true)) {
+
                     // Model field
                     writer.println("--" + boundary);
                     writer.println("Content-Disposition: form-data; name=\"model\"");
@@ -72,16 +76,19 @@ public final class GroqClient {
                 try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                     StringBuilder resp = new StringBuilder();
                     String line;
-                    while ((line = br.readLine()) != null) resp.append(line);
-                    
-                    if (code != 200) return "[Error STT] " + code;
+                    while ((line = br.readLine()) != null)
+                        resp.append(line);
+
+                    if (code != 200)
+                        return "[Error STT] " + code;
                     JsonObject json = GSON.fromJson(resp.toString(), JsonObject.class);
                     return json.has("text") ? json.get("text").getAsString() : "";
                 }
             } catch (Exception e) {
                 return "[Error Red] " + e.getMessage();
             } finally {
-                if (conn != null) conn.disconnect();
+                if (conn != null)
+                    conn.disconnect();
             }
         }, EXECUTOR);
     }
@@ -92,7 +99,8 @@ public final class GroqClient {
             try {
                 String apiKey = AsistenteConfig.GROQ_API_KEY.get();
                 String model = AsistenteConfig.GROQ_MODEL.get();
-                if (apiKey == null || apiKey.isEmpty()) return "[Error] API Key faltante.";
+                if (apiKey == null || apiKey.isEmpty())
+                    return "[Error] API Key faltante.";
 
                 URL url = new URL("https://api.groq.com/openai/v1/chat/completions");
                 conn = (HttpURLConnection) url.openConnection();
@@ -123,9 +131,11 @@ public final class GroqClient {
                 try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                     StringBuilder resp = new StringBuilder();
                     String line;
-                    while ((line = br.readLine()) != null) resp.append(line);
-                    
-                    if (code != 200) return "[Error LLM] " + code;
+                    while ((line = br.readLine()) != null)
+                        resp.append(line);
+
+                    if (code != 200)
+                        return "[Error LLM] " + code;
                     JsonObject json = GSON.fromJson(resp.toString(), JsonObject.class);
                     return json.getAsJsonArray("choices")
                             .get(0).getAsJsonObject()
@@ -135,7 +145,8 @@ public final class GroqClient {
             } catch (Exception e) {
                 return "[Error Red] " + e.getMessage();
             } finally {
-                if (conn != null) conn.disconnect();
+                if (conn != null)
+                    conn.disconnect();
             }
         }, EXECUTOR);
     }
