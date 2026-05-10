@@ -5,19 +5,20 @@ import com.sevino.asistente.config.AsistenteClientConfig;
 import org.slf4j.Logger;
 
 import java.io.ByteArrayOutputStream;
-import java.util.Locale;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * TTS: StreamElements primero; si falla (401, red, etc.), respaldo no oficial de Google translate_tts.
+ * TTS: primero Google translate_tts (mejor pronunciacion/detection del idioma {@code tl});
+ * si falla, StreamElements kappa v2/speech con la voz configurada.
  */
 public final class SevinoTTSClient {
 
@@ -29,11 +30,12 @@ public final class SevinoTTSClient {
         return t;
     });
 
-    /** Limite para URLs GET (StreamElements y Google). */
     private static final int MAX_TTS_CHARS = 1800;
 
     private static final String BROWSER_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+
+    private static final String STREAMELEMENTS_SPEECH_V2 = "https://api.streamelements.com/kappa/v2/speech";
 
     private SevinoTTSClient() {}
 
@@ -45,20 +47,33 @@ public final class SevinoTTSClient {
         if (text == null || text.isBlank()) return null;
         String clipped = text.length() > MAX_TTS_CHARS ? text.substring(0, MAX_TTS_CHARS) : text;
 
-        byte[] se = tryStreamElementsVoices(clipped, streamElementsVoice());
-        if (se != null && se.length > 0) return se;
-
-        LOGGER.warn("[Sevino TTS] StreamElements no disponible; probando respaldo Google.");
         byte[] g = tryGoogleTranslateTtsAll(clipped, googleTtsLang());
-        if (g != null && g.length > 0) return g;
+        if (g != null && g.length > 0) {
+            LOGGER.info("[Sevino TTS] Audio desde Google (tl configurado).");
+            return g;
+        }
+
+        LOGGER.warn("[Sevino TTS] Google no disponible; probando StreamElements.");
+        byte[] se = tryStreamElementsOnce(clipped, streamElementsVoice());
+        if (se != null && se.length > 0) {
+            LOGGER.info("[Sevino TTS] Audio desde StreamElements (voz {}).", streamElementsVoice());
+            return se;
+        }
 
         return null;
     }
 
-    private static void applyBrowserHeaders(HttpURLConnection conn) {
+    private static void applyGoogleHeaders(HttpURLConnection conn) {
         conn.setRequestProperty("User-Agent", BROWSER_UA);
         conn.setRequestProperty("Accept", "audio/mpeg,audio/*,*/*;q=0.9");
-        conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9,es;q=0.8");
+        conn.setRequestProperty("Accept-Language", "es-ES,es;q=0.9,en-US;q=0.8");
+    }
+
+    private static void applyStreamElementsHeaders(HttpURLConnection conn) {
+        conn.setRequestProperty("User-Agent", BROWSER_UA);
+        conn.setRequestProperty("Accept", "audio/mpeg,audio/*,*/*;q=0.9");
+        conn.setRequestProperty("Accept-Language", "es-ES,es;q=0.9,en-US;q=0.8");
+        conn.setRequestProperty("Referer", "https://streamelements.com/");
     }
 
     private static String streamElementsVoice() {
@@ -69,17 +84,15 @@ public final class SevinoTTSClient {
         return sanitizeLang(AsistenteClientConfig.GOOGLE_TTS_LANG.get());
     }
 
-    /** Voces StreamElements: letras, numeros, punto, guion (ej. Enrique, Miguel). */
     private static String sanitizeVoice(String raw) {
-        if (raw == null) return "Enrique";
+        if (raw == null) return "Miguel";
         String v = raw.trim();
-        if (v.isEmpty()) return "Enrique";
+        if (v.isEmpty()) return "Miguel";
         if (v.length() > 48) v = v.substring(0, 48);
-        if (!v.matches("[A-Za-z0-9][A-Za-z0-9._-]*")) return "Enrique";
+        if (!v.matches("[A-Za-z0-9][A-Za-z0-9._-]*")) return "Miguel";
         return v;
     }
 
-    /** Codigo corto para parametro tl (ej. es, en). */
     private static String sanitizeLang(String raw) {
         if (raw == null) return "es";
         String L = raw.trim().toLowerCase(Locale.ROOT);
@@ -89,39 +102,23 @@ public final class SevinoTTSClient {
         return L;
     }
 
-    /** Voces masculinas español (Polly/SE); se reintentan si la preferida falla por HTTP o cuerpo vacío. */
-    private static byte[] tryStreamElementsVoices(String text, String preferredVoice) {
-        LinkedHashSet<String> voices = new LinkedHashSet<>();
-        voices.add(preferredVoice);
-        voices.add("Enrique");
-        voices.add("Miguel");
-        for (String v : voices) {
-            byte[] audio = tryStreamElementsOnce(text, v);
-            if (audio != null && audio.length > 0) {
-                LOGGER.info("[Sevino TTS] StreamElements OK (voz {}).", v);
-                return audio;
-            }
-        }
-        return null;
-    }
-
     private static byte[] tryStreamElementsOnce(String text, String voice) {
         HttpURLConnection conn = null;
         try {
             String encodedVoice = URLEncoder.encode(voice, StandardCharsets.UTF_8);
             String encodedText = URLEncoder.encode(text, StandardCharsets.UTF_8);
-            String urlStr = "https://api.streamelements.com/kappa/v2/speech?voice=" + encodedVoice + "&text=" + encodedText;
+            String urlStr = STREAMELEMENTS_SPEECH_V2 + "?voice=" + encodedVoice + "&text=" + encodedText;
 
             URL url = new URL(urlStr);
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            applyBrowserHeaders(conn);
+            applyStreamElementsHeaders(conn);
             conn.setConnectTimeout(8000);
             conn.setReadTimeout(45000);
 
             int code = conn.getResponseCode();
             if (code != 200) {
-                LOGGER.warn("[Sevino TTS] StreamElements voz={} HTTP {}", voice, code);
+                LOGGER.warn("[Sevino TTS] StreamElements HTTP {}", code);
                 return null;
             }
 
@@ -131,40 +128,36 @@ public final class SevinoTTSClient {
                 int n;
                 while ((n = is.read(buffer)) != -1) bos.write(buffer, 0, n);
                 byte[] audio = bos.toByteArray();
-                if (audio.length == 0) LOGGER.warn("[Sevino TTS] StreamElements voz={} respuesta vacia", voice);
+                if (audio.length == 0) LOGGER.warn("[Sevino TTS] StreamElements respuesta vacia");
                 return audio;
             }
         } catch (Exception e) {
-            LOGGER.warn("[Sevino TTS] StreamElements voz={}: {}", voice, e.toString());
+            LOGGER.warn("[Sevino TTS] StreamElements: {}", e.toString());
             return null;
         } finally {
             if (conn != null) conn.disconnect();
         }
     }
 
-    /**
-     * Google no permite elegir género; con idioma {@code es} probamos {@code es-us} y {@code es} por si cambia el timbre.
-     */
+    /** Para {@code es} prueba castellano generico y luego latin US. */
     private static byte[] tryGoogleTranslateTtsAll(String text, String primaryLang) {
         String sanitized = sanitizeLang(primaryLang);
         LinkedHashSet<String> langs = new LinkedHashSet<>();
         if ("es".equals(sanitized)) {
-            langs.add("es-us");
             langs.add("es");
+            langs.add("es-us");
         } else {
             langs.add(sanitized);
         }
         for (String tl : langs) {
             byte[] audio = tryGoogleTranslateTtsOnce(text, tl);
             if (audio != null && audio.length >= 100) {
-                LOGGER.info("[Sevino TTS] Respaldo Google (tl={}; timbre fijo del servicio).", tl);
                 return audio;
             }
         }
         return null;
     }
 
-    /** Endpoint historico; puede cambiar o limitarse por Google. */
     private static byte[] tryGoogleTranslateTtsOnce(String text, String lang) {
         HttpURLConnection conn = null;
         try {
@@ -176,7 +169,7 @@ public final class SevinoTTSClient {
             URL url = new URL(urlStr);
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            applyBrowserHeaders(conn);
+            applyGoogleHeaders(conn);
             conn.setInstanceFollowRedirects(true);
             conn.setConnectTimeout(8000);
             conn.setReadTimeout(45000);
