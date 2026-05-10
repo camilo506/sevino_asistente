@@ -32,16 +32,15 @@ public final class SevinoVoiceClient {
         final boolean wantStream = AsistenteClientConfig.DOWNLOAD_VOICE_MP3.get();
         final boolean narratorOn = mc.options.narrator().get() != NarratorStatus.OFF;
         final String spokenFinal = spoken;
-        final String rawFinal = rawReply;
 
         if (wantStream) {
-            SevinoTTSClient.speak(rawFinal).thenAccept(audio ->
+            SevinoTTSClient.speak(spokenFinal).thenAccept(audio ->
                     mc.execute(() -> applyStreamResult(mc, audio, spokenFinal, narratorOn)));
         } else if (narratorOn) {
             mc.execute(() -> mc.getNarrator().sayNow(spokenFinal));
         } else {
             SevinoAsistente.LOGGER.warn("[Sevino Voz] downloadVoiceMp3=false y narrador apagado; intentando TTS por altavoces.");
-            SevinoTTSClient.speak(rawFinal).thenAccept(audio ->
+            SevinoTTSClient.speak(spokenFinal).thenAccept(audio ->
                     mc.execute(() -> applyStreamResult(mc, audio, spokenFinal, false)));
         }
     }
